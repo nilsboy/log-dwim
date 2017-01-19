@@ -1,0 +1,23 @@
+{
+  "name": "log-dwim",
+  "version": "1.0.0",
+  "description": "Do what I mean logger.",
+  "main": "index.js",
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ha"
+  },
+  "keywords": [
+    "log",
+    "dwim",
+    "cli"
+  ],
+  "author": "me",
+  "license": "MIT",
+  "dependencies": {
+    "log4js": "^1.1.0"
+  }
+}
