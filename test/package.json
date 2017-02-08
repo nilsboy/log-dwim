@@ -1,10 +1,10 @@
 {
-  "name": "log-dwim",
+  "name": "log-dwim-test",
   "version": "1.0.0",
   "description": "Do what I mean logger.",
   "main": "index.js",
   "scripts": {
-    "test": "mocha test/test.js"
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
