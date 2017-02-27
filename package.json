@@ -20,12 +20,13 @@
   "dependencies": {
     "env-paths": "^1.0.0",
     "expand-tilde": "^2.0.2",
+    "fs-extra": "^2.0.0",
     "lodash": "^4.17.4",
     "log4js": "^1.1.0",
-    "mkdirp": "^0.5.1",
     "packpath": "^0.1.0",
     "pkginfo": "^0.4.0",
-    "std-mocks": "^1.0.1"
+    "std-mocks": "^1.0.1",
+    "unique-temp-dir": "^1.0.0"
   },
   "devDependencies": {
     "assert": "^1.4.1",

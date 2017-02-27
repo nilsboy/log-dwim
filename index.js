@@ -19,9 +19,8 @@ const packpath = require(`packpath`)
 const envPaths = require(`env-paths`)
 const log4js = require(`log4js`)
 const util = require(`util`)
-const fs = require(`fs`)
+const fs = require(`fs-extra`)
 const expandTilde = require(`expand-tilde`)
-const mkdir = require(`mkdirp`).sync
 const _ = require(`lodash`)
 
 const config = {
@@ -36,7 +35,7 @@ const consoleAppenderConfig = {
   , layout: {
     type: `pattern`
     , pattern: `%d{hh:mm} %-5p> %m`
-    , example: `INFO> message`
+    , example: `INFO > message`
   }
 }
 
@@ -51,7 +50,7 @@ const fileAppenderConfig = {
   , category: [`main`]
   , layout: {
     type: `pattern`
-    , pattern: `%d %h %p> %m`
+    , pattern: `%d %h %-5p> %m`
   }
 }
 
@@ -59,12 +58,18 @@ config.appenders.push(consoleAppenderConfig)
 
 class Logger {
 
-  constructor(options = {
-    appName: null
-  }) {
+  constructor(options = { appName: null }) {
     this.setAppName(options.appName)
-    this._loggerBackend = log4js.getLogger(`main`)
-    this.setLogLevel(process.env.LOG_LEVEL || `INFO`)
+    this._logger = log4js.getLogger(`main`)
+    this._log4js = log4js
+
+    if(!process.env.LOG_LEVEL) {
+      if(process.stderr.isTTY) {
+        this.setLogLevel(`INFO`)
+      } else {
+        this.setLogLevel(`ERROR`)
+      }
+    }
 
     if (process.env.LOG_FILE) {
       this.setLogFile(process.env.LOG_FILE)
@@ -85,7 +90,7 @@ class Logger {
 
   setLogLevel(logLevel) {
     this.logLevel = logLevel.toLowerCase()
-    this._loggerBackend.setLevel(this.logLevel)
+    this._logger.setLevel(this.logLevel)
     if (process.env.DEBUG_LOGGER) {
       console.error(`Using loglevel: ${this.logLevel}`)
     }
@@ -112,41 +117,43 @@ class Logger {
 
   setLogFile(logFilePath) {
     logFilePath = this.createLogFileName(logFilePath)
-    mkdir(path.dirname(logFilePath))
+    fs.mkdirsSync(path.dirname(logFilePath))
 
     if (config.appenders[1]) {
-      this._loggerBackend.warn(`Replacing already set logfile: ${config.appenders[1].filename} - with: ${logFilePath}`)
+      this._logger.warn(`Replacing already set logfile: ${config.appenders[1].filename} - with: ${logFilePath}`)
     } else {
-      this._loggerBackend.info(`Setting logfile to ${logFilePath}`)
+      // TODO: make this display only on stdout and err if debugging env var set
+      // this._logger.trace(`Setting logfile to ${logFilePath}`)
     }
 
     fileAppenderConfig.filename = logFilePath
     config.appenders[1] = fileAppenderConfig
-    this.log4js.configure(config)
+    this._log4js.configure(config)
 
-    this._loggerBackend.info(`Logfile set to: ${logFilePath}`)
+      // TODO: make this display only on stdout and err if debugging env var set
+    this._logger.trace(`Logfile set to: ${logFilePath}`)
   }
 
   EXIT() {
-    this._loggerBackend.fatal(...Array.prototype.slice.call(arguments))
+    this._logger.fatal(...Array.prototype.slice.call(arguments))
     process.exit(1)
   }
 
   DUMP(object) {
-    this._loggerBackend[logLevel](`DUMP:\n  ${util.inspect(object, {
+    this._logger[logLevel](`DUMP:\n  ${util.inspect(object, {
       depth: null
     })}`)
   }
 
   createLoggerFacade() {
-    const loggerBackend = this._loggerBackend
+    const logger = this._logger
 
     for (const m of [`trace`, `debug`, `info`, `warn`, `error`, `fatal`]) {
       this[m.toUpperCase()] = function() {
-        if (!loggerBackend[`is${_.startCase(m)}Enabled`]()) {
+        if (!logger[`is${_.startCase(m)}Enabled`]()) {
           return
         }
-        return loggerBackend[m](...Array.prototype.slice.call(arguments))
+        return logger[m](...Array.prototype.slice.call(arguments))
       }
     }
     this.logger = this
@@ -172,20 +179,20 @@ class Logger {
     }
 
     const sigintListener = () => {
-      this._loggerBackend.fatal(`received SIGINT - exiting`)
+      this._logger.fatal(`received SIGINT - exiting`)
       process.exit(1)
     }
 
     const sighubListener = () => {
-      this._loggerBackend.warn(`received SIGHUB`)
+      this._logger.warn(`received SIGHUB`)
     }
 
     function warningListener(warning) {
-      this._loggerBackend.warn(warning)
+      this._logger.warn(warning)
     }
 
     const uncaughtExceptionListener = (err) => {
-      this._loggerBackend.fatal(`Exiting due to uncaught exception: ${err}`)
+      this._logger.fatal(`Exiting due to uncaught exception: ${err}`)
 
       // log4js.shutdown()
       // TODO: need to throw if only handler?
@@ -195,11 +202,11 @@ class Logger {
     }
 
     function unhandledRejectionHandler(reason, p) {
-      this._loggerBackend.warn(`Unhandled Rejection at: Promise `, p, ` reason: `, reason)
+      this._logger.warn(`Unhandled Rejection at: Promise `, p, ` reason: `, reason)
     }
 
     function rejectionHandledHandler(p) {
-      this._loggerBackend.info(`Handled Rejection at: Promise `, p)
+      this._logger.info(`Handled Rejection at: Promise `, p)
     }
   }
 }

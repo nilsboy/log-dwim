@@ -2,25 +2,28 @@
 
 `use strict`
 
-// TODO: test parent name
-// TODO: test file pattern postfix
-
 const assert = require(`assert`)
 const stdMocks = require(`std-mocks`)
 
 const envPaths = require(`env-paths`)
 const path = require(`path`)
+const fs = require(`fs-extra`)
+const LOG_DIRECTORY = require(`unique-temp-dir`)()
 
-var Logger = require(`../`)
-var lib
+const Logger = require(`../`)
+let lib
 
-beforeEach(() =>
+beforeEach(() => {
+  process.stderr.isTTY = true
   lib = new Logger()
-)
+})
 
 afterEach(() => {
   // make sure std* get restored after failing tests
   stdMocks.restore()
+  if (fs.existsSync(LOG_DIRECTORY)) {
+    fs.removeSync(LOG_DIRECTORY)
+  }
 })
 
 it(`appName is set automatically`, () =>
@@ -28,12 +31,18 @@ it(`appName is set automatically`, () =>
 )
 
 it(`appName can be specified`, () =>
-  assert.equal(new Logger({appName: `foo`}).appName, `foo`)
+  assert.equal(new Logger({
+    appName: `foo`
+  }).appName, `foo`)
 )
 
 it(`createLogFileName returns absolute path`, () =>
   assert.ok(path.isAbsolute(lib.createLogFileName()))
 )
+
+it(`createLogFilame returns absolute path for leading tilde`, () => {
+  assert.ok(path.isAbsolute(lib.createLogFileName(`~/la/le/lu`)))
+})
 
 it(`default logging directory`, () =>
   assert.ok(lib.createLogFileName().startsWith(envPaths(lib.appName).log))
@@ -49,15 +58,17 @@ it(`produces no stdout`, () => {
   lib.INFO(`foo`)
   stdMocks.restore()
   const output = stdMocks.flush()
+
   assert.equal(output.stdout, ``)
 })
 
-it(`stderr output looks right`, () => {
+it(`stderr output looks ok`, () => {
+  lib.setLogLevel(`INFO`)
   stdMocks.use()
   lib.INFO(`foo`)
-  stdMocks.restore()
   const output = stdMocks.flush()
 
+  stdMocks.restore()
   assert.ok(/^\d\d\:\d\d INFO > foo\n$/.test(output.stderr.toString()))
 })
 
@@ -72,3 +83,46 @@ it(`outputs trace output with log level trace`, () => {
   assert.ok(/^\d\d\:\d\d TRACE> foo\n$/.test(output.stderr.toString()))
 })
 
+it(`outputs INFO output with log level trace`, () => {
+  lib.setLogLevel(`TRACE`)
+  stdMocks.use()
+  lib.INFO(`foo`)
+  stdMocks.restore()
+  const output = stdMocks.flush()
+
+  assert.ok(/^\d\d\:\d\d INFO > foo\n$/.test(output.stderr.toString()))
+})
+
+it(`level gets set to error when not connected to a tty`, () => {
+  process.stderr.isTTY = false
+  lib = new Logger()
+  assert.equal(lib.logLevel, `error`)
+})
+
+it(`level gets set to info when connected to a tty`, () => {
+  process.stderr.isTTY = true
+  lib = new Logger()
+  assert.equal(lib.logLevel, `info`)
+})
+
+it(`logs to logfile`, (done) => {
+  const logFile = path.join(LOG_DIRECTORY, `bla.log`)
+
+  lib.setLogFile(logFile)
+  lib.INFO(`foo`)
+
+  // Shutdown to sync the logfile to disk
+  lib._log4js.shutdown((err) => {
+    if (err) {
+      throw err
+    }
+
+    assert.ok(fs.existsSync(logFile))
+    const output = fs.readFileSync(logFile).toString()
+
+    // 2017-02-27 14:49:54.077 hostname INFO > foo
+    assert.ok(/^.* INFO > foo\n*$/.test(output))
+
+    done()
+  })
+})
