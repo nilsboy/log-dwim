@@ -10,20 +10,25 @@ const path = require(`path`)
 const fs = require(`fs-extra`)
 const LOG_DIRECTORY = require(`unique-temp-dir`)()
 
-const Logger = require(`../`)
+const LogDwim = require(`../`)
 let lib
 
-beforeEach(() => {
+// process.env.LOG_DWIM_DEBUG = 1
+
+beforeEach((done) => {
   process.stderr.isTTY = true
-  lib = new Logger()
+  lib = new LogDwim()
+  done()
 })
 
-afterEach(() => {
+afterEach((done) => {
+  delete(process.env.LOG_FILE)
   // make sure std* get restored after failing tests
   stdMocks.restore()
   if (fs.existsSync(LOG_DIRECTORY)) {
     fs.removeSync(LOG_DIRECTORY)
   }
+  done()
 })
 
 it(`appName is set automatically`, () =>
@@ -31,7 +36,7 @@ it(`appName is set automatically`, () =>
 )
 
 it(`appName can be specified`, () =>
-  assert.equal(new Logger({
+  assert.equal(new LogDwim({
     appName: `foo`
   }).appName, `foo`)
 )
@@ -40,13 +45,21 @@ it(`createLogFileName returns absolute path`, () =>
   assert.ok(path.isAbsolute(lib.createLogFileName()))
 )
 
-it(`createLogFilame returns absolute path for leading tilde`, () => {
-  assert.ok(path.isAbsolute(lib.createLogFileName(`~/la/le/lu`)))
+it(`createLogFileName returns absolute path for leading tilde`, () => {
+  assert.ok(path.isAbsolute(lib.createLogFileName(`~/foo`)))
 })
 
 it(`default logging directory`, () =>
   assert.ok(lib.createLogFileName().startsWith(envPaths(lib.appName).log))
 )
+
+// TODO: async test problem with env var and `logs to logfile` test
+// it(`set logfile name via env`, () => {
+//   const logfile = path.join(LOG_DIRECTORY, `baz.log`)
+//   process.env.LOG_FILE = logfile
+//   lib = new LogDwim()
+//   assert.ok(lib.logfile == logfile)
+// })
 
 // TODO: still not convinced this is good...
 it(`default logging directory ends with -nodejs`, () =>
@@ -95,24 +108,27 @@ it(`outputs INFO output with log level trace`, () => {
 
 it(`level gets set to error when not connected to a tty`, () => {
   process.stderr.isTTY = false
-  lib = new Logger()
+  lib = new LogDwim()
   assert.equal(lib.logLevel, `error`)
 })
 
 it(`level gets set to info when connected to a tty`, () => {
-  process.stderr.isTTY = true
-  lib = new Logger()
+  lib = new LogDwim()
   assert.equal(lib.logLevel, `info`)
 })
 
 it(`logs to logfile`, (done) => {
-  const logFile = path.join(LOG_DIRECTORY, `bla.log`)
+  const logFile = path.join(LOG_DIRECTORY, `foo.log`)
 
+  // console.error(`### process.env.LOG_FILE:`, process.env.LOG_FILE)
+
+  lib = new LogDwim()
   lib.setLogFile(logFile)
   lib.INFO(`foo`)
 
   // Shutdown to sync the logfile to disk
   lib._log4js.shutdown((err) => {
+  delete(process.env.LOG_FILE)
     if (err) {
       throw err
     }

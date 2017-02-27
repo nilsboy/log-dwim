@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 // TODO: option to set pattern layout
-// TODO: dump config if LOG_DWIM_DUMP_CONFIG is set or at trace level?
 // TODO add color - the stdout appender has color already build in
 // TODO: to add line and column of log statement:
 //   checkout: https://github.com/ww24/log4js-node-extend
@@ -59,6 +58,11 @@ config.appenders.push(consoleAppenderConfig)
 class Logger {
 
   constructor(options = { appName: null }) {
+
+    if(process.env.LOG_DWIM_DEBUG) {
+      this._debugDwim = true
+    }
+
     this.setAppName(options.appName)
     this._logger = log4js.getLogger(`main`)
     this._log4js = log4js
@@ -71,6 +75,7 @@ class Logger {
       }
     }
 
+    // this._traceDwim(`### process.env.LOG_FILE:`, process.env.LOG_FILE)
     if (process.env.LOG_FILE) {
       this.setLogFile(process.env.LOG_FILE)
     }
@@ -91,9 +96,13 @@ class Logger {
   setLogLevel(logLevel) {
     this.logLevel = logLevel.toLowerCase()
     this._logger.setLevel(this.logLevel)
-    if (process.env.DEBUG_LOGGER) {
-      console.error(`Using loglevel: ${this.logLevel}`)
+    if (this._debugDwim) {
+      this._traceDwim(`Loglevel set to: ${this.logLevel}`)
     }
+  }
+
+  _traceDwim(msg) {
+      console.error(`log-dwim DEBUG> ${msg}`)
   }
 
   // TODO: static
@@ -119,19 +128,23 @@ class Logger {
     logFilePath = this.createLogFileName(logFilePath)
     fs.mkdirsSync(path.dirname(logFilePath))
 
-    if (config.appenders[1]) {
-      this._logger.warn(`Replacing already set logfile: ${config.appenders[1].filename} - with: ${logFilePath}`)
-    } else {
-      // TODO: make this display only on stdout and err if debugging env var set
-      // this._logger.trace(`Setting logfile to ${logFilePath}`)
+    if(this._debugDwim) {
+      if (config.appenders[1]) {
+        this._traceDwim(`Replacing already set logfile: ${config.appenders[1].filename} - with: ${logFilePath}`)
+      } else {
+        this._traceDwim(`Setting logfile to ${logFilePath}`)
+      }
     }
 
     fileAppenderConfig.filename = logFilePath
     config.appenders[1] = fileAppenderConfig
     this._log4js.configure(config)
 
-      // TODO: make this display only on stdout and err if debugging env var set
-    this._logger.trace(`Logfile set to: ${logFilePath}`)
+    if(this._debugDwim) {
+      this._traceDwim(`Logfile set to: ${logFilePath}`)
+    }
+
+    this.logfile = logFilePath
   }
 
   EXIT() {
