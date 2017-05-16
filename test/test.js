@@ -11,7 +11,9 @@ const fs = require(`fs-extra`)
 const LOG_DIRECTORY = require(`unique-temp-dir`)()
 
 const LogDwim = require(`../`)
-let lib
+let lib = new LogDwim()
+
+lib.installExceptionHandlers()
 
 // process.env.LOG_DWIM_DEBUG = 1
 
@@ -22,7 +24,8 @@ beforeEach((done) => {
 })
 
 afterEach((done) => {
-  delete(process.env.LOG_FILE)
+  delete process.env.LOG_FILE
+
   // make sure std* get restored after failing tests
   stdMocks.restore()
   if (fs.existsSync(LOG_DIRECTORY)) {
@@ -44,6 +47,8 @@ it(`appName can be specified`, () =>
 it(`createLogFileName returns absolute path`, () =>
   assert.ok(path.isAbsolute(lib.createLogFileName()))
 )
+
+({)
 
 it(`createLogFileName returns absolute path for leading tilde`, () => {
   assert.ok(path.isAbsolute(lib.createLogFileName(`~/foo`)))
@@ -120,15 +125,17 @@ it(`level gets set to info when connected to a tty`, () => {
 it(`logs to logfile`, (done) => {
   const logFile = path.join(LOG_DIRECTORY, `foo.log`)
 
-  // console.error(`### process.env.LOG_FILE:`, process.env.LOG_FILE)
-
   lib = new LogDwim()
   lib.setLogFile(logFile)
+
+  // supress output for test
+  stdMocks.use()
   lib.INFO(`foo`)
+  stdMocks.restore()
 
   // Shutdown to sync the logfile to disk
   lib._log4js.shutdown((err) => {
-  delete(process.env.LOG_FILE)
+    delete process.env.LOG_FILE
     if (err) {
       throw err
     }
@@ -142,3 +149,8 @@ it(`logs to logfile`, (done) => {
     done()
   })
 })
+
+// it(`logs on sighub`, () => {
+//   // Keep program running
+//   // process.stdin.resume()
+// })

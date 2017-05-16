@@ -18,6 +18,8 @@
   "author": "me",
   "license": "MIT",
   "dependencies": {
+    "bluebird": "^3.5.0",
+    "callsite": "^1.0.0",
     "env-paths": "^1.0.0",
     "expand-tilde": "^2.0.2",
     "fs-extra": "^2.0.0",
@@ -25,6 +27,7 @@
     "log4js": "^1.1.0",
     "packpath": "^0.1.0",
     "pkginfo": "^0.4.0",
+    "split": "^1.0.0",
     "std-mocks": "^1.0.1",
     "unique-temp-dir": "^1.0.0"
   },
