@@ -94,7 +94,6 @@ class Logger {
       this.setLogLevel(process.env.LOG_LEVEL.toUpperCase())
     }
 
-    // this._traceDwim(`### process.env.LOG_FILE:`, process.env.LOG_FILE)
     if (process.env.LOG_FILE) {
       this.setLogFile(process.env.LOG_FILE)
     }
@@ -168,22 +167,8 @@ class Logger {
     this.logfile = logFilePath
   }
 
-  EXIT() {
-    this._logger.fatal(...Array.prototype.slice.call(arguments))
-    process.exit(1)
-  }
-
-  DUMP(object) {
-    this._logger[logLevel](
-      `DUMP:\n  ${util.inspect(object, {
-        depth: null
-      })}`
-    )
-  }
-
   createLoggerFacade() {
     const logger = this._logger
-
     for (const m of [`trace`, `debug`, `info`, `warn`, `error`, `fatal`]) {
       this[m.toUpperCase()] = function() {
         if (!logger[`is${_.startCase(m)}Enabled`]()) {
@@ -191,6 +176,23 @@ class Logger {
         }
         return logger[m](...Array.prototype.slice.call(arguments))
       }
+    }
+
+    this[`DIE`] = function() {
+      logger.fatal(...Array.prototype.slice.call(arguments))
+      process.exit(1)
+    }
+
+    // deprecated - use DIE
+    this[`EXIT`] = this[`DIE`]
+
+    let logLevel = this.logLevel
+    this[`DUMP`] = function() {
+      logger[logLevel](
+        `DUMP:\n  ${util.inspect([...Array.prototype.slice.call(arguments)], {
+          depth: null
+        })}`
+      )
     }
   }
 
