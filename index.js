@@ -10,6 +10,8 @@
 // TODO: add option for sync: https://github.com/nomiddlename/log4js-node/wiki/Date%20rolling%20file%20appender%20-%20with%20synchronous%20file%20output%20modes
 // TODO: add appname to log pattern?
 // TODO: check NODE_ENV?
+//
+// SEE ALSO: require(`loud-rejection`)()
 
 "use strict;"
 
@@ -212,13 +214,13 @@ class Logger {
     addAsFirstListener(`rejectionHandled`, rejectionHandledEventListener)
 
     addAsFirstListener(`beforeExit`, () =>
-      logger.TRACE(`beforeExit event received`)
+      logger.TRACE(`BeforeExit event received`)
     )
     addAsFirstListener(`exit`, exitCode =>
-      logger.TRACE(`exit event received with exitCode ${exitCode}`)
+      logger.TRACE(`Exit event received with exitCode ${exitCode}`)
     )
     addAsFirstListener(`message`, () =>
-      logger.TRACE(`message event received by child process`)
+      logger.TRACE(`Message event received by child process`)
     )
 
     function addAsFirstListener(signal, handler, removeExisting) {
@@ -228,7 +230,7 @@ class Logger {
         listeners = []
       } else if (listeners.length) {
         logger.TRACE(
-          `found existing event listener for event "${signal}":\n${listeners}`
+          `Found existing event listener for event "${signal}":\n${listeners}`
         )
       }
 
@@ -248,24 +250,21 @@ class Logger {
       logger.WARN(`SIGHUB event received`)
     }
 
-    function warningEventListener(warning) {
-      logger.WARN(`warning event received:\n`, warning)
+    function warningEventListener(error) {
+      logger.WARN(`Warning event received:\n` + error.stack)
     }
 
-    function uncaughtExceptionEventListener(err) {
+    function uncaughtExceptionEventListener(error) {
       logger.FATAL(
-        `uncaughtException event received:\n${err.stack}\n${_stackTrace()}`
+        `uncaughtException event received:\n${error.stack}\n${_stackTrace()}`
       )
       process.exit(1)
     }
 
-    // exists in future versions of node by itself
-    // TODO: stackTrace not useful
-    function unhandledRejectionEventListener(reason, p) {
+    function unhandledRejectionEventListener(error) {
       logger.FATAL(
-        reason,
-        // TODO: new line
-        `(unhandledRejection event)\n`
+        `unhandledRejection event received:\n`
+        + error.stack
       )
       process.exit(1)
     }
@@ -274,13 +273,14 @@ class Logger {
       logger.WARN(`rejectionHandled event received:\nPromise:\n`, p)
     }
 
+    // TODO: column number not supported?
     function _stackTrace() {
       let stackTrace = ``
-
       callsite().forEach((site) => {
+        const util = require(`util`)
         stackTrace +=
-          `\n    at ${site.getFunctionName() || `anonymous`}` +
-          ` (${site.getFileName()}:${site.getLineNumber()})`
+          `    at ${site.getFunctionName() || `anonymous`}` +
+          ` (${site.getFileName()}:${site.getLineNumber()}:0)\n`
       })
       return stackTrace
     }

@@ -1,6 +1,6 @@
 {
-  "name": "log-dwim",
-  "version": "1.0.0",
+  "name": "@nilsboy/log-dwim",
+  "version": "1.1.0",
   "description": "Do what I mean logger.",
   "main": "index.js",
   "scripts": {
